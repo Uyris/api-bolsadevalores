@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: bolsa-db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-bolsa_valores}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bolsa-network
+
+  api:
+    image: ${DOCKERHUB_USERNAME}/bolsa-valores-api:latest
+    container_name: bolsa-api
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD}@db:5432/${DB_NAME:-bolsa_valores}
+      USERS_API_URL: ${USERS_API_URL:-http://18.228.48.67}
+      USERS_API_TIMEOUT: ${USERS_API_TIMEOUT:-10}
+      HOST: 0.0.0.0
+      PORT: 8000
+    ports:
+      - "80:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    networks:
+      - bolsa-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  bolsa-network:
+    driver: bridge
