@@ -58,7 +58,7 @@ def validar_usuario(usuario_id: str) -> UsuarioExterno:
                 detail=f"Usuário com ID {usuario_id} não encontrado"
             )
         
-        if response.status_code != 200:
+        if response.status_code != 200 and response.status_code != 201:
             logger.error(f"Status inesperado: {response.status_code}, body: {response.text}")
             raise HTTPException(
                 status_code=500,
