@@ -5,15 +5,21 @@ import os
 from datetime import datetime
 from typing import List, Optional
 from contextlib import asynccontextmanager
+import logging
 
 from models import Transacao, get_db, init_db
 from schemas import TransacaoCreate, TransacaoResponse, UsuarioExterno
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Initialize database on startup
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     init_db()
+    logger.info("Aplicação iniciada")
     yield
     # Shutdown (no cleanup needed for this app)
 
@@ -28,38 +34,72 @@ app = FastAPI(
 USERS_API_URL = os.getenv("USERS_API_URL", "http://18.228.48.67")
 USERS_API_TIMEOUT = int(os.getenv("USERS_API_TIMEOUT", "10"))
 
+logger.info(f"USERS_API_URL configurado para: {USERS_API_URL}")
+logger.info(f"USERS_API_TIMEOUT configurado para: {USERS_API_TIMEOUT}s")
+
 
 def validar_usuario(usuario_id: str) -> UsuarioExterno:
     """Valida se o usuário existe na API externa"""
+    url = f"{USERS_API_URL}/users/{usuario_id}"
+    logger.info(f"Validando usuário {usuario_id} em: {url}")
+    
     try:
         response = requests.get(
-            f"{USERS_API_URL}/users/{usuario_id}",
+            url,
             timeout=USERS_API_TIMEOUT
         )
         
+        logger.info(f"Resposta da API: status_code={response.status_code}")
+        
         if response.status_code == 404:
+            logger.warning(f"Usuário {usuario_id} não encontrado")
             raise HTTPException(
                 status_code=404,
                 detail=f"Usuário com ID {usuario_id} não encontrado"
             )
         
         if response.status_code != 200:
+            logger.error(f"Status inesperado: {response.status_code}, body: {response.text}")
             raise HTTPException(
                 status_code=500,
-                detail="Erro ao validar usuário com a API externa"
+                detail=f"API de usuários retornou status {response.status_code}"
             )
         
         usuario_data = response.json()
+        logger.info(f"Usuário validado com sucesso. Email: {usuario_data.get('email')}")
+        
         return UsuarioExterno(
             id=usuario_data.get("id", usuario_id),
             email=usuario_data.get("email"),
             name=usuario_data.get("name")
         )
     
-    except requests.exceptions.RequestException:
+    except requests.exceptions.Timeout:
+        logger.error(f"Timeout ao conectar com a API de usuários ({USERS_API_TIMEOUT}s)")
         raise HTTPException(
-            status_code=500,
+            status_code=503,
+            detail=f"Timeout ao validar usuário - API de usuários não respondeu em {USERS_API_TIMEOUT}s"
+        )
+    
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"Erro de conexão com a API de usuários: {str(e)}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Erro ao conectar com a API de usuários. Verifique se {USERS_API_URL} está acessível"
+        )
+    
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Erro ao fazer requisição à API de usuários: {str(e)}")
+        raise HTTPException(
+            status_code=503,
             detail="Erro ao conectar com a API de usuários"
+        )
+    
+    except ValueError as e:
+        logger.error(f"Erro ao fazer parse do JSON: {str(e)}")
+        raise HTTPException(
+            status_code=502,
+            detail="API de usuários retornou JSON inválido"
         )
 
 
