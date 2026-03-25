@@ -9,12 +9,6 @@ API para gerenciar transações de ações na bolsa de valores.
 - **DELETE /transacao/{id}** - Deleta uma transação
 - **GET /health** - Verifica a saúde da aplicação
 
-## Requisitos
-
-- Python 3.12+
-- PostgreSQL 16+
-- Docker e Docker Compose (para deployment)
-
 ## Instalação Local
 
 ### 1. Clone o repositório
@@ -113,30 +107,6 @@ curl -X DELETE http://localhost:8000/transacao/1
 
 **Retorna:** 204 No Content
 
-## Configuração de Secrets no GitHub
-
-Configure os seguintes secrets no repositório:
-
-- `DOCKERHUB_USERNAME` - Seu username no Docker Hub
-- `DOCKERHUB_TOKEN` - Token de acesso do Docker Hub
-- `EC2_HOST` - IP/hostname da sua instância EC2
-- `EC2_USER` - Usuário SSH da EC2
-- `EC2_SSH_KEY` - Chave SSH privada para EC2
-- `DATABASE_URL` - URL de conexão do PostgreSQL em produção
-- `USERS_API_URL` - URL da API de usuários (padrão: http://18.228.48.67)
-- `USERS_API_TIMEOUT` - Timeout em segundos para chamadas à API (padrão: 10)
-
-## Deploy
-
-O deploy automático acontece quando há push na branch `main`.
-
-O GitHub Actions:
-1. Compila a imagem Docker
-2. Faz push para Docker Hub
-3. Conecta-se à EC2 via SSH
-4. Cria o arquivo `.env` com os secrets
-5. Atualiza e inicia os containers com `docker compose`
-
 ## Variáveis de Ambiente
 
 - `DATABASE_URL` - String de conexão PostgreSQL (obrigatório em produção)
@@ -192,9 +162,3 @@ curl -X DELETE http://localhost:8000/transacao/1
 # Health check
 curl http://localhost:8000/health
 ```
-
-## Documentação Interativa
-
-Acesse `http://localhost:8000/docs` para a documentação interativa do Swagger.
-
-Acesse `http://localhost:8000/redoc` para a documentação do ReDoc.
